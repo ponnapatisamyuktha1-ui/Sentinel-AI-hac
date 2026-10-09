@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { enterDemoMode } from "@/routes/_authenticated/route";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -26,22 +27,22 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
-  // Auto-redirect to dashboard on localhost (demo mode)
+  // Check existing session on load (skip for demo mode)
   useEffect(() => {
-    const isDemoMode = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    if (isDemoMode) {
-      // Auto-navigate to dashboard for demo
-      navigate({ to: "/dashboard" });
-    } else {
-      // Check existing session for production
-      supabase.auth.getSession().then(({ data }) => data.session && navigate({ to: "/dashboard" }));
-    }
-  }, [navigate]);
+    if (mode === "demo") return;
+    supabase.auth.getSession().then(({ data }) => data.session && navigate({ to: "/dashboard" }));
+  }, [navigate, mode]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
+      if (mode === "demo") {
+        // Demo mode: set flag so the auth guard lets us through, then navigate
+        enterDemoMode();
+        navigate({ to: "/dashboard" });
+        return;
+      }
       if (mode === "up") {
         const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/dashboard` } });
         if (error) throw error;
