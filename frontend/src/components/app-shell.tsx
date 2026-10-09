@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import {
-  LayoutDashboard, Mail, Bot, ScanSearch, ShieldCheck, Radar, SlidersHorizontal, ScrollText, FlaskConical, BookOpen, LogOut, Menu, Shield, Bell,
+  LayoutDashboard, Mail, Bot, ScanSearch, ShieldCheck, Radar, SlidersHorizontal, ScrollText, FlaskConical, LogOut, Menu, Shield, Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
@@ -19,7 +19,6 @@ const NAV = [
   { to: "/policies", label: "Policy Manager", icon: SlidersHorizontal },
   { to: "/audit", label: "Audit Logs", icon: ScrollText },
   { to: "/lab", label: "Attack Simulation Lab", icon: FlaskConical },
-  { to: "/setup", label: "Setup & Docs", icon: BookOpen },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {

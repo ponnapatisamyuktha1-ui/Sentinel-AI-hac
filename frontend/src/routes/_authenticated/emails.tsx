@@ -23,7 +23,7 @@ interface EmailData {
 function Emails() {
   const { data: emails } = useSuspenseQuery(emailsQ);
   const [selected, setSelected] = useState<string | number | null>(emails[0]?.id ?? null);
-  const selectedEmail = emails.find((e) => e.id === selected) as EmailData | undefined;
+  const selectedEmail = emails.find((e: EmailData) => e.id === selected) as EmailData | undefined;
 
   return (
     <>

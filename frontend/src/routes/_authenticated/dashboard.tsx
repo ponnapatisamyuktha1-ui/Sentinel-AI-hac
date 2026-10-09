@@ -27,9 +27,9 @@ function Dashboard() {
     <>
       <PageHeader title="Security Dashboard" subtitle="Live overview of every request your simulated AI agents sent through the gateway." />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Requests inspected" value={logs.length} hint={`${agents.filter((a) => a.status === "active").length} active agents`} />
+        <Stat label="Requests inspected" value={logs.length} hint={`${agents.filter((a: { status: string }) => a.status === "active").length} active agents`} />
         <Stat label="Threats blocked" value={blocked} tone="destructive" hint="Never executed" />
-        <Stat label="Sensitive-data alerts" value={sensitive} tone="warning" hint={`${emails.filter((e) => e.scan && (e.scan as any).level !== "low").length} flagged emails`} />
+        <Stat label="Sensitive-data alerts" value={sensitive} tone="warning" hint={`${emails.filter((e: { scan?: { level?: string } | undefined }) => e.scan && e.scan.level !== "low").length} flagged emails`} />
         <Stat label="Containment" value={`${posture}%`} tone="success" hint="Critical threats stopped" />
       </div>
       <div className="mt-6 grid gap-4 lg:grid-cols-3">

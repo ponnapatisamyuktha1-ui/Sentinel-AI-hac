@@ -1,83 +1,35 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
 
 const q = <T,>(key: string, fn: () => Promise<T>) => queryOptions({ queryKey: [key], queryFn: fn });
 
-// Use backend API for agents - with fallback to mock data
 export const agentsQ = q("agents", async () => {
   try {
-    const response = await fetch(import.meta.env.VITE_API_BASE + "/agents", {
-      headers: { "Accept": "application/json" },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      return Array.isArray(data) ? data : data.data || [];
-    }
-  } catch (error) {
+    return await api.getAgents();
+  } catch {
     console.warn("Backend agents unavailable, using mock data");
+    return [
+      { id: "agent_email_summarizer", name: "Email Summarizer", status: "active", created_at: new Date().toISOString() },
+      { id: "agent_doc_assistant", name: "Document Assistant", status: "active", created_at: new Date().toISOString() },
+      { id: "agent_finance_ops", name: "Finance Operations", status: "inactive", created_at: new Date().toISOString() },
+    ];
   }
-  // Return mock agents
-  return [
-    { id: "1", name: "InboxAssistant", status: "active", created_at: new Date().toISOString() },
-    { id: "2", name: "DevOpsAgent", status: "active", created_at: new Date().toISOString() },
-    { id: "3", name: "FinanceBot", status: "inactive", created_at: new Date().toISOString() },
-  ];
 });
 
-// Use backend API for resources
-export const resourcesQ = q("resources", async () => {
-  try {
-    const response = await fetch(import.meta.env.VITE_API_BASE + "/resources", {
-      headers: { "Accept": "application/json" },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      return Array.isArray(data) ? data : data.data || [];
-    }
-  } catch (error) {
-    console.warn("Backend resources unavailable");
-  }
-  return [];
-});
-
-// Use backend API for policy
-export const policyQ = q("policy", async () => {
-  try {
-    const response = await fetch(import.meta.env.VITE_API_BASE + "/policies", {
-      headers: { "Accept": "application/json" },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      return Array.isArray(data) ? data[0] : data.data?.[0];
-    }
-  } catch (error) {
-    console.warn("Backend policy unavailable");
-  }
-  return null;
-});
-
-// Use backend API for emails - with fallback to mock data
 export const emailsQ = q("emails", async () => {
   try {
-    const response = await fetch(import.meta.env.VITE_API_BASE + "/emails", {
-      headers: { "Accept": "application/json" },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      return Array.isArray(data) ? data : data.data || [];
-    }
-  } catch (error) {
+    const emails = await api.getEmails();
+    return emails.length > 0 ? emails : api.getMockEmails();
+  } catch {
     console.warn("Backend emails unavailable, using mock data");
+    return api.getMockEmails();
   }
-  return api.getMockEmails();
 });
 
-// Use backend API for audit logs
 export const logsQ = q("audit_logs", async () => {
   try {
     return await api.getLogs();
-  } catch (error) {
+  } catch {
     console.warn("Backend audit logs unavailable");
     return [];
   }

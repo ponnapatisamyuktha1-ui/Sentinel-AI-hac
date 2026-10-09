@@ -21,7 +21,6 @@ import { Route as AuthenticatedGatewayRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedLabRouteImport } from './routes/_authenticated/lab'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedPoliciesRouteImport } from './routes/_authenticated/policies'
-import { Route as AuthenticatedSetupRouteImport } from './routes/_authenticated/setup'
 import { Route as AuthenticatedThreatsRouteImport } from './routes/_authenticated/threats'
 
 const IndexRoute = IndexRouteImport.update({
@@ -84,11 +83,6 @@ const AuthenticatedPoliciesRoute = AuthenticatedPoliciesRouteImport.update({
   path: '/policies',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedSetupRoute = AuthenticatedSetupRouteImport.update({
-  id: '/setup',
-  path: '/setup',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedThreatsRoute = AuthenticatedThreatsRouteImport.update({
   id: '/threats',
   path: '/threats',
@@ -107,7 +101,6 @@ export interface FileRoutesByFullPath {
   '/lab': typeof AuthenticatedLabRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/policies': typeof AuthenticatedPoliciesRoute
-  '/setup': typeof AuthenticatedSetupRoute
   '/threats': typeof AuthenticatedThreatsRoute
 }
 export interface FileRoutesByTo {
@@ -122,7 +115,6 @@ export interface FileRoutesByTo {
   '/lab': typeof AuthenticatedLabRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/policies': typeof AuthenticatedPoliciesRoute
-  '/setup': typeof AuthenticatedSetupRoute
   '/threats': typeof AuthenticatedThreatsRoute
 }
 export interface FileRoutesById {
@@ -139,7 +131,6 @@ export interface FileRoutesById {
   '/_authenticated/lab': typeof AuthenticatedLabRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/policies': typeof AuthenticatedPoliciesRoute
-  '/_authenticated/setup': typeof AuthenticatedSetupRoute
   '/_authenticated/threats': typeof AuthenticatedThreatsRoute
 }
 export interface FileRouteTypes {
@@ -156,7 +147,6 @@ export interface FileRouteTypes {
     | '/lab'
     | '/notifications'
     | '/policies'
-    | '/setup'
     | '/threats'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -171,7 +161,6 @@ export interface FileRouteTypes {
     | '/lab'
     | '/notifications'
     | '/policies'
-    | '/setup'
     | '/threats'
   id:
     | '__root__'
@@ -187,7 +176,6 @@ export interface FileRouteTypes {
     | '/_authenticated/lab'
     | '/_authenticated/notifications'
     | '/_authenticated/policies'
-    | '/_authenticated/setup'
     | '/_authenticated/threats'
   fileRoutesById: FileRoutesById
 }
@@ -283,13 +271,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliciesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/setup': {
-      id: '/_authenticated/setup'
-      path: '/setup'
-      fullPath: '/setup'
-      preLoaderRoute: typeof AuthenticatedSetupRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/threats': {
       id: '/_authenticated/threats'
       path: '/threats'
@@ -310,7 +291,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLabRoute: typeof AuthenticatedLabRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedPoliciesRoute: typeof AuthenticatedPoliciesRoute
-  AuthenticatedSetupRoute: typeof AuthenticatedSetupRoute
   AuthenticatedThreatsRoute: typeof AuthenticatedThreatsRoute
 }
 
@@ -324,7 +304,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLabRoute: AuthenticatedLabRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedPoliciesRoute: AuthenticatedPoliciesRoute,
-  AuthenticatedSetupRoute: AuthenticatedSetupRoute,
   AuthenticatedThreatsRoute: AuthenticatedThreatsRoute,
 }
 

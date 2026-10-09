@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { logsQ } from "@/lib/data";
 import { PageHeader, Pill, fmtTime } from "@/components/sec-ui";
-import { Link } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/audit")({
   head: () => ({ meta: [{ title: "Audit Logs — Sentinel AI" }] }),

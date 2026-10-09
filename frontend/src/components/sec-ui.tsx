@@ -1,5 +1,6 @@
 import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
+import type React from "react";
 import { cn } from "@/lib/utils";
 
 const pill = cva("inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide", {
@@ -33,11 +34,14 @@ export function SimLabel() {
   );
 }
 
-export function PageHeader({ title, subtitle, children }: { title: string; subtitle?: string; children?: ReactNode }) {
+export function PageHeader({ title, subtitle, children, icon: Icon }: { title: string; subtitle?: string; children?: ReactNode; icon?: React.ElementType }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          {Icon && <Icon className="h-6 w-6 text-primary" />}
+          {title}
+        </h1>
         {subtitle && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {children && <div className="flex gap-2">{children}</div>}
@@ -69,25 +73,52 @@ export function fmtTime(s: string) {
   return new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-export function ResultCard({ r }: { r: { decision: string; threatLevel: string; reasons: string[]; executed: boolean; output?: string | null; findings?: { label: string; type: string }[] } }) {
+export function ResultCard({ r }: { r: { decision: string; threatLevel: string; reasons: string[]; executed: boolean; output?: string | null | undefined; findings?: { label: string; type: string }[] | undefined; explanation?: string | undefined } }) {
+  const isBlock = r.decision === "BLOCK";
+  const isRedact = r.decision === "REDACT";
   return (
     <div className="panel space-y-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <Pill tone={r.decision} />
         <Pill tone={r.threatLevel}>threat: {r.threatLevel}</Pill>
         <span className={cn("font-mono text-xs", r.executed ? "text-success" : "text-destructive")}>
-          {r.executed ? "● action executed (simulated)" : "■ action NOT executed"}
+          {r.executed ? "● executed" : "■ blocked — not executed"}
         </span>
       </div>
-      <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
-        {r.reasons.map((x, i) => <li key={i}>{x}</li>)}
-      </ul>
-      {r.findings && r.findings.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {r.findings.map((f, i) => <Pill key={i} tone={f.type === "injection" ? "critical" : f.type === "secret" ? "high" : "medium"}>{f.label}</Pill>)}
+      {r.reasons.length > 0 && (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {isBlock || isRedact ? "Threat signals" : "Gateway notes"}
+          </div>
+          <ul className="space-y-1">
+            {r.reasons.map((x, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                <span className={cn("mt-0.5 flex-shrink-0 font-bold", isBlock ? "text-destructive" : isRedact ? "text-warning" : "text-success")}>
+                  {isBlock ? "✗" : isRedact ? "~" : "✓"}
+                </span>
+                {x}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
-      {r.output && <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-xs">{r.output}</pre>}
+      {r.findings && r.findings.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {r.findings.map((f, i) => (
+            <Pill key={i} tone={f.type === "injection" ? "critical" : f.type === "pii" ? "high" : "medium"}>
+              {f.label}
+            </Pill>
+          ))}
+        </div>
+      )}
+      {r.explanation && (
+        <p className="text-xs text-muted-foreground italic">{r.explanation}</p>
+      )}
+      {r.output && (
+        <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-xs leading-relaxed max-h-48 overflow-y-auto">
+          {r.output}
+        </pre>
+      )}
     </div>
   );
 }
