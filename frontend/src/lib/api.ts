@@ -1,4 +1,5 @@
 // AgentShield Backend API Client — mapped to actual backend routes
+import { MOCK_SCENARIOS } from "./mock-data";
 
 const API_BASE = (import.meta.env as Record<string, string>)["VITE_API_BASE"] || "http://localhost:8000/api";
 
@@ -166,6 +167,67 @@ function mapSimResult(data: Record<string, unknown>): SimulationResult {
   };
 }
 
+// ── Client-side DLP fallback (used when backend is offline) ──────
+function localDlpScan(text: string): InspectResult {
+  const entities: InspectResult["sensitive_entities"] = [];
+  const threats: string[] = [];
+
+  const patterns: Array<{ re: RegExp; type: string; label: string; isThreat?: boolean }> = [
+    { re: /(?:password|passwd|pwd)\s*[:=]\s*\S+/gi, type: "PASSWORD_PATTERN", label: "Password" },
+    { re: /(?:api[_-]?key|secret[_-]?key|access[_-]?key)\s*[:=]\s*\S+/gi, type: "API_KEY", label: "API Key" },
+    { re: /\b(?:AKIA|ASIA|AROA)[A-Z0-9]{16}\b/g, type: "AWS_ACCESS_KEY", label: "AWS Key" },
+    { re: /sk-[a-zA-Z0-9]{20,}/g, type: "OPENAI_API_KEY", label: "OpenAI Key" },
+    { re: /\b\d{3}-\d{2}-\d{4}\b/g, type: "SSN", label: "SSN" },
+    { re: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14})\b/g, type: "CREDIT_CARD", label: "Credit Card" },
+    { re: /ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions?/gi, type: "PROMPT_INJECTION", label: "Prompt Injection", isThreat: true },
+    { re: /you\s+are\s+now\s+(?:a|an)\s+/gi, type: "ROLE_OVERRIDE", label: "Role Override", isThreat: true },
+    { re: /SYSTEM\s+INSTRUCTION\s+OVERRIDE/gi, type: "SECURITY_INSTRUCTION_OVERRIDE", label: "Instruction Override", isThreat: true },
+  ];
+
+  for (const { re, type, label, isThreat } of patterns) {
+    const matches = text.match(re);
+    if (matches) {
+      if (isThreat) threats.push(type);
+      else entities.push({ type, value_preview: matches[0].slice(0, 20) + "…" });
+    }
+  }
+
+  const injectionScore = threats.length > 0 ? 0.9 : 0;
+  const riskLevel = threats.length > 0 ? "CRITICAL" : entities.length > 0 ? "HIGH" : "LOW";
+
+  return {
+    classification: riskLevel === "LOW" ? "PUBLIC" : "HIGHLY_CONFIDENTIAL",
+    sensitive_entities: entities,
+    threats_detected: threats,
+    risk_level: riskLevel,
+    prompt_injection_score: injectionScore,
+    summary: `Classified as ${riskLevel}. Detected ${entities.length} sensitive tokens. Threats found: ${threats.length}.`,
+  };
+}
+
+// ── Simulated offline result for Attack Lab ───────────────────────
+function simulateOfflineResult(scenarioId: string, expected: string, explanation: string): SimulationResult {
+  const threatMap: Record<string, string[]> = {
+    scen_prompt_injection_salary: ["SECURITY INSTRUCTION OVERRIDE"],
+    scen_unapproved_destination: ["UNAPPROVED DESTINATION"],
+    scen_prohibited_tool_call: ["UNAUTHORIZED TOOL CALL"],
+    scen_secret_leak_redaction: ["API KEY DETECTED — redacted from output"],
+    scen_pii_sanitization: ["PII MASKED — phone, SSN, email redacted"],
+    scen_human_approval_flow: ["HUMAN REVIEW REQUIRED — financial operation"],
+  };
+  const reasons = threatMap[scenarioId] ?? [explanation || "Gateway evaluated request (simulated)"];
+  return {
+    decision: expected,
+    threatLevel: expected === "BLOCK" ? "critical" : expected === "REVIEW" ? "high" : expected === "REDACT" ? "medium" : "low",
+    reasons,
+    executed: expected === "ALLOW",
+    output: "[Simulated — backend offline. In production, the real gateway runs this check.]",
+    findings: reasons.map((r) => ({ label: r, type: r.toLowerCase().includes("inject") ? "injection" : r.toLowerCase().includes("pii") ? "pii" : "secret" })),
+    latency_ms: Math.random() * 10 + 1,
+    explanation,
+  };
+}
+
 export const api = {
   // ── Audit logs ────────────────────────────────────────────────────
   async getLogs(): Promise<AuditLog[]> {
@@ -194,34 +256,56 @@ export const api = {
 
   // ── Emails ───────────────────────────────────────────────────────
   async getEmails(): Promise<Email[]> {
-    const r = await fetch(`${API_BASE}/emails`);
-    if (!r.ok) throw new Error(`emails: ${r.status}`);
-    const data = await r.json();
-    const arr: Record<string, unknown>[] = Array.isArray(data) ? data : data.data ?? [];
-    return arr.map((e) => ({
-      id: (e["id"] as string) ?? "",
-      sender: (e["sender"] as string) ?? "unknown@example.com",
-      subject: (e["subject"] as string) ?? "(no subject)",
-      body: (e["body"] as string) ?? "",
-      received_at: (e["received_at"] as string) ?? (e["timestamp"] as string) ?? new Date().toISOString(),
-      scan: e["scan"] as Email["scan"] | undefined,
-    }));
+    try {
+      const r = await fetch(`${API_BASE}/emails`);
+      if (!r.ok) throw new Error(`emails: ${r.status}`);
+      const data = await r.json();
+      const arr: Record<string, unknown>[] = Array.isArray(data) ? data : data.data ?? [];
+      return arr.map((e) => ({
+        id: (e["id"] as string) ?? "",
+        sender: (e["sender"] as string) ?? "unknown@example.com",
+        subject: (e["subject"] as string) ?? "(no subject)",
+        body: (e["body"] as string) ?? "",
+        received_at: (e["received_at"] as string) ?? (e["timestamp"] as string) ?? new Date().toISOString(),
+        scan: e["scan"] as Email["scan"] | undefined ??
+          (e["inspection_status"] ? {
+            level: (e["inspection_status"] as string) === "BLOCKED" ? "critical" as const :
+                   (e["inspection_status"] as string) === "INSPECTED_THREAT" ? "high" as const :
+                   (e["inspection_status"] as string) === "PENDING_REVIEW" ? "medium" as const : "low" as const,
+            threats: (e["threats_detected"] as string[] | undefined) ?? undefined,
+          } : undefined),
+      }));
+    } catch {
+      throw new Error("emails offline");
+    }
   },
 
   // ── Simulation scenarios ─────────────────────────────────────────
   async getScenarios(): Promise<SimulationScenario[]> {
-    const r = await fetch(`${API_BASE}/simulation/scenarios`);
-    if (!r.ok) throw new Error(`scenarios: ${r.status}`);
-    const data = await r.json();
-    return Array.isArray(data) ? data : data.scenarios ?? [];
+    try {
+      const r = await fetch(`${API_BASE}/simulation/scenarios`);
+      if (!r.ok) throw new Error(`scenarios: ${r.status}`);
+      const data = await r.json();
+      const arr = Array.isArray(data) ? data : data.scenarios ?? [];
+      return arr.length > 0 ? arr : MOCK_SCENARIOS;
+    } catch {
+      return MOCK_SCENARIOS;
+    }
   },
 
   // ── Run a simulation scenario ────────────────────────────────────
   async runScenario(scenarioId: string): Promise<SimulationResult> {
-    const r = await fetch(`${API_BASE}/simulation/run/${scenarioId}`, { method: "POST" });
-    if (!r.ok) throw new Error(`run scenario: ${r.status}`);
-    const data = await r.json();
-    return mapSimResult(data as Record<string, unknown>);
+    try {
+      const r = await fetch(`${API_BASE}/simulation/run/${scenarioId}`, { method: "POST" });
+      if (!r.ok) throw new Error(`run scenario: ${r.status}`);
+      const data = await r.json();
+      return mapSimResult(data as Record<string, unknown>);
+    } catch {
+      // Simulate offline result based on scenario's expected decision
+      const scenario = MOCK_SCENARIOS.find((s) => s.id === scenarioId);
+      const expected = scenario?.expected_decision ?? "BLOCK";
+      return simulateOfflineResult(scenarioId, expected, scenario?.explanation ?? "");
+    }
   },
 
   // ── Custom simulation (free-form) ────────────────────────────────
@@ -248,17 +332,22 @@ export const api = {
     agent_id?: string;
     action_type?: string;
   }): Promise<InspectResult> {
-    const r = await fetch(`${API_BASE}/inspect-input`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: payload.content,
-        agent_id: payload.agent_id ?? "dlp_scanner",
-        action_type: payload.action_type ?? "send_email",
-      }),
-    });
-    if (!r.ok) throw new Error(`inspect: ${r.status}`);
-    return r.json();
+    try {
+      const r = await fetch(`${API_BASE}/inspect-input`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: payload.content,
+          agent_id: payload.agent_id ?? "dlp_scanner",
+          action_type: payload.action_type ?? "send_email",
+        }),
+      });
+      if (!r.ok) throw new Error(`inspect: ${r.status}`);
+      return r.json();
+    } catch {
+      // Client-side fallback DLP scan
+      return localDlpScan(payload.content);
+    }
   },
 
   // ── Notifications ────────────────────────────────────────────────

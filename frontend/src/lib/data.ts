@@ -1,36 +1,33 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { MOCK_AGENTS, MOCK_EMAILS, MOCK_LOGS } from "@/lib/mock-data";
 
-const q = <T,>(key: string, fn: () => Promise<T>) => queryOptions({ queryKey: [key], queryFn: fn });
+const q = <T,>(key: string, fn: () => Promise<T>) =>
+  queryOptions({ queryKey: [key], queryFn: fn });
 
 export const agentsQ = q("agents", async () => {
   try {
-    return await api.getAgents();
+    const data = await api.getAgents();
+    return data.length > 0 ? data : MOCK_AGENTS;
   } catch {
-    console.warn("Backend agents unavailable, using mock data");
-    return [
-      { id: "agent_email_summarizer", name: "Email Summarizer", status: "active", created_at: new Date().toISOString() },
-      { id: "agent_doc_assistant", name: "Document Assistant", status: "active", created_at: new Date().toISOString() },
-      { id: "agent_finance_ops", name: "Finance Operations", status: "inactive", created_at: new Date().toISOString() },
-    ];
+    return MOCK_AGENTS;
   }
 });
 
 export const emailsQ = q("emails", async () => {
   try {
-    const emails = await api.getEmails();
-    return emails.length > 0 ? emails : api.getMockEmails();
+    const data = await api.getEmails();
+    return data.length > 0 ? data : MOCK_EMAILS;
   } catch {
-    console.warn("Backend emails unavailable, using mock data");
-    return api.getMockEmails();
+    return MOCK_EMAILS;
   }
 });
 
 export const logsQ = q("audit_logs", async () => {
   try {
-    return await api.getLogs();
+    const data = await api.getLogs();
+    return data.length > 0 ? data : MOCK_LOGS;
   } catch {
-    console.warn("Backend audit logs unavailable");
-    return [];
+    return MOCK_LOGS;
   }
 });
